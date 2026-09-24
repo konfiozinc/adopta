@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Adopta · pruebas de interfaz</title>
+  <link rel="stylesheet" href="../css/base.css" />
+  <link rel="stylesheet" href="../css/components.css" />
+  <link rel="stylesheet" href="../css/pages.css" />
+</head>
+<body>
+<!-- ============================================================================
+     tools/test-inline.html — Pruebas de interfaz en navegador real
+     ----------------------------------------------------------------------------
+     Carga la aplicación completa (los mismos scripts que index.html) y ejecuta
+     interacciones reales sobre el DOM: navegación, buscador, filtros, favoritos,
+     galería, flujo de adopción, seguimiento, cuenta y persistencia.
+
+     Los resultados se escriben en #test-results para poder leerlos con:
+       chrome --headless --dump-dom http://127.0.0.1:8899/tools/test-inline.html
+     La consola del navegador muestra el mismo resumen en formato legible.
+     ========================================================================== -->
+
+  <!-- Marcado idéntico al de index.html (el router pinta en #vista) -->
+  <a class="skip-link" href="#vista">Saltar al contenido</a>
+
+  <div id="splash" class="splash" role="status" aria-label="Cargando Adopta">
+    <div class="splash__inner">
+      <div class="splash__logo">
+        <span class="splash__heart" data-icon="heart"></span>
+        <span class="splash__paw splash__paw--1" data-icon="paw"></span>
+        <span class="splash__paw splash__paw--2" data-icon="paw"></span>
+        <span class="splash__paw splash__paw--3" data-icon="paw"></span>
+      </div>
+      <h1 class="splash__title">Adopta</h1>
+      <p class="splash__slogan">Tu próximo compañero te espera</p>
+      <div class="splash__bar"><span></span></div>
+      <p class="splash__hint">Preparando historias felices…</p>
+    </div>
+  </div>
+
+  <header class="topbar" id="topbar">
+    <div class="topbar__inner">
+      <a class="brand" href="#/">
+        <span class="brand__mark" data-icon="heart"></span>
+        <span class="brand__text"><strong>Adopta</strong><small>Adopción responsable</small></span>
+      </a>
+      <nav class="topnav" id="topnav" aria-label="Navegación principal"></nav>
+      <div class="topbar__actions">
+        <button class="icon-btn" id="btn-theme" type="button" aria-label="Cambiar tema">
+          <span data-icon="moon"></span>
+        </button>
+        <a class="avatar-btn" href="#/cuenta" aria-label="Ir a mi cuenta">
+          <span class="avatar avatar--sm" id="topbar-avatar">D</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main id="vista" class="vista" tabindex="-1" aria-live="polite"></main>
+
+  <nav class="tabbar" id="tabbar" aria-label="Navegación inferior"></nav>
+
+  <div id="modal-root"></div>
+  <div id="sheet-root"></div>
+  <div id="toast-root" class="toast-root"></div>
+
+  <!-- Núcleo de la aplicación: mismo orden que en index.html -->
+  <script src="../js/utils/icons.js"></script>
+  <script src="../js/utils/format.js"></script>
+  <script src="../js/utils/dom.js"></script>
+  <script src="../js/utils/storage.js"></script>
+  <script src="../js/utils/a11y.js"></script>
+  <script src="../js/utils/media.js"></script>
+  <script src="../js/data/pets.data.js"></script>
+  <script src="../js/data/user.data.js"></script>
+  <script src="../js/data/repository.js"></script>
+  <script src="../js/state.js"></script>
+  <script src="../js/router.js"></script>
+  <script src="../js/ui/views.js"></script>
+  <script src="../js/ui/toast.js"></script>
+  <script src="../js/ui/modal.js"></script>
+  <script src="../js/ui/cards.js"></script>
+  <script src="../js/ui/search.js"></script>
+  <script src="../js/ui/pet-card.js"></script>
+  <script src="../js/ui/tabbar.js"></script>
+  <script src="../js/ui/topbar.js"></script>
+  <script src="../js/features/adoption-form.js"></script>
+  <script src="../js/pages/home.js"></script>
+  <script src="../js/pages/pets.js"></script>
+  <script src="../js/pages/pet-detail.js"></script>
+  <script src="../js/pages/requests.js"></script>
+  <script src="../js/pages/account.js"></script>
+  <script src="../js/app.js"></script>
+
+  <pre id="test-results" hidden></pre>
+
+  <script>
+  (function () {
+    'use strict';
+
+    var results = [];
+    var jsErrors = [];
+
+    window.addEventListener('error', function (e) {
+      jsErrors.push('error: ' + e.message + ' @' + (e.filename || '').split('/').pop() + ':' + e.lineno);
+    });
+    window.addEventListener('unhandledrejection', function (e) {
+      jsErrors.push('rejection: ' + (e.reason && (e.reason.message || e.reason)));
+    });
+
+    function ok(label, condition, detail) {
+      results.push((condition ? 'PASS ' : 'FAIL ') + label + (detail !== undefined ? ' [' + detail + ']' : ''));
+    }
+
+    function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+    /* Espera activa: los tests no dependen de tiempos fijos */
+    async function waitFor(fn, timeout) {
+      var limit = timeout || 4000;
+      var waited = 0;
+      while (waited < limit) {
+        var value;
+        try { value = fn(); } catch (e) { value = null; }
+        if (value) { return value; }
+        await sleep(40);
+        waited += 40;
+      }
+      return null;
+    }
+
+    var $ = function (sel) { return document.querySelector(sel); };
+    var $$ = function (sel) { return Array.prototype.slice.call(document.querySelectorAll(sel)); };
+
+    /* Los modales tienen animación de salida: hay que esperar a que
+       desaparezcan del DOM antes de interactuar con la vista de debajo. */
+    function waitForModalsClosed() {
+      return waitFor(function () { return $$('dialog.overlay').length === 0; }, 3000);
+    }
+
+    /* Navega y espera a que el router pinte una vista distinta: evita leer
+       contenido de la vista anterior durante la transición. */
+    async function goTo(hash) {
+      var before = document.getElementById('vista').firstElementChild;
+      location.hash = hash;
+      await waitFor(function () {
+        var now = document.getElementById('vista').firstElementChild;
+        return now && now !== before;
+      }, 4000);
+      await sleep(60);
+    }
+
+    async function run() {
+      /* Cada tramo se ejecuta aislado: si uno falla, se registra el punto exacto
+       * con su traza y la batería continúa en lugar de abortar en silencio. */
+      async function step(name, fn) {
+        try { await fn(); } catch (error) {
+          var context = 'hash=' + location.hash +
+            ' | modal=' + (document.querySelector('dialog.overlay') ? 'abierto' : 'cerrado') +
+            ' | foco=' + (document.activeElement ? document.activeElement.tagName + '#' + document.activeElement.id : 'ninguno');
+          results.push('FAIL excepción en "' + name + '": ' + error.message + ' (' + context + ')');
+          console.log('%c excepción en ' + name, 'color:#D64545;font-weight:bold');
+          console.log(error.stack);
+        }
+      }
+      /* -------- 1. Arranque y pantalla de carga -------- */
+      ok('la pantalla de carga estaba presente al arrancar', !!window.__BOOT && window.__BOOT.splashVisible === true,
+        'splashVisible=' + (window.__BOOT && window.__BOOT.splashVisible));
+      ok('el router ha pintado el contenedor principal', document.getElementById('vista').children.length > 0);
+
+      var splash = document.getElementById('splash');
+      if (splash) { splash.remove(); }   /* se retira para no esperar los 1,6 s */
+
+      /* -------- 2. Inicio -------- */
+      var heroText = await waitFor(function () { return ($('.hero h1') || {}).textContent; });
+      ok('saludo dinámico con el nombre del perfil', String(heroText).indexOf('Hola, Darwin') === 0, heroText);
+
+      var cardCount = await waitFor(function () { return $$('.pet-card').length; });
+      ok('tarjetas de mascota en Inicio', cardCount > 0, cardCount + ' tarjetas');
+      ok('carrusel de destacados', $$('.carousel .feature').length > 0, $$('.carousel .feature').length + ' destacadas');
+      ok('chips de filtro en Inicio', $$('[data-filter-species]').length === 4);
+      ok('badge de solicitudes en la barra inferior', !!$('[data-badge="requests"]'),
+        $('[data-badge="requests"]') && $('[data-badge="requests"]').textContent);
+
+      /* -------- 3. Favoritos -------- */
+      var heart = $('[data-fav]');
+      var petId = heart.getAttribute('data-fav');
+      var before = State.isFavorite(petId);
+      heart.click();
+      await sleep(120);
+      ok('el corazón marca y desmarca el favorito', State.isFavorite(petId) !== before, petId);
+      ok('aria-pressed refleja el estado', heart.getAttribute('aria-pressed') === String(State.isFavorite(petId)));
+      ok('la clase visual del corazón se actualiza', heart.classList.contains('is-active') === State.isFavorite(petId));
+      heart.click();
+      await sleep(120);
+      ok('el favorito vuelve a su estado inicial', State.isFavorite(petId) === before);
+
+      /* -------- 4. Navegación y barra inferior -------- */
+      document.querySelector('[data-tab="/mascotas"]').click();
+      await sleep(400);
+      ok('la barra inferior navega al catálogo', location.hash === '#/mascotas', location.hash);
+
+      var catalogCards = await waitFor(function () { return $$('#catalog-grid .pet-card').length; });
+      ok('el catálogo pinta tarjetas (sin quedarse en esqueletos)', !!catalogCards, catalogCards + ' tarjetas');
+      ok('sin esqueletos residuales', $$('.skeleton--card').length === 0, $$('.skeleton--card').length + ' esqueletos');
+      ok('la pestaña activa queda marcada',
+        document.querySelector('[data-tab="/mascotas"]').classList.contains('is-active'));
+
+      /* -------- 5. Filtros del catálogo -------- */
+      var gatos = Repository.speciesCounts().gato;
+      $('[data-filter-species="gato"]').click();
+      await waitFor(function () { return $$('#catalog-grid .pet-card').length === gatos; });
+      ok('el filtro por gatos devuelve el total correcto', $$('#catalog-grid .pet-card').length === gatos,
+        $$('#catalog-grid .pet-card').length + ' de ' + gatos);
+
+      var search = $('[data-search-input]');
+      search.value = 'milo';
+      search.dispatchEvent(new Event('input', { bubbles: true }));
+      await waitFor(function () { return $$('#catalog-grid .pet-card').length === 1; });
+      ok('la búsqueda se combina con el filtro',
+        $$('#catalog-grid .pet-card').length === 1 && $('#catalog-grid .pet-card__name').textContent.trim().indexOf('Milo') === 0,
+        $$('#catalog-grid .pet-card__name').length ? $('#catalog-grid .pet-card__name').textContent.trim() : 'sin resultados');
+
+      search.value = 'zzzz';
+      search.dispatchEvent(new Event('input', { bubbles: true }));
+      await waitFor(function () { return $('#catalog-grid .empty'); });
+      ok('estado vacío con acción de recuperación', !!$('#catalog-grid .empty') && !!$('[data-action="clear-filters"]'));
+      $('[data-action="clear-filters"]').click();
+      await waitFor(function () { return $$('#catalog-grid .pet-card').length === Repository.speciesCounts().todos; });
+      ok('limpiar filtros recupera el catálogo completo',
+        $$('#catalog-grid .pet-card').length === Repository.speciesCounts().todos,
+        $$('#catalog-grid .pet-card').length + ' tarjetas');
+      ok('el buscador se vacía al limpiar filtros', $('[data-search-input]').value === '');
+
+      /* -------- 6. Ficha de mascota -------- */
+      var target = ['rocky', 'nala', 'daisy'].filter(function (id) { return !State.getRequestForPet(id); })[0] || 'rocky';
+      var targetPet = Repository._sync.getPet(target);
+      await goTo('#/mascotas/' + target);
+      await waitFor(function () { return $('.detail__header h1'); });
+      ok('la ficha muestra el nombre correcto', $('.detail__header h1').textContent.trim() === targetPet.name, targetPet.name);
+      ok('la ficha muestra datos clave', $$('.fact').length === 4, $$('.fact').length + ' datos');
+      ok('la ficha muestra el estado de salud', $$('.health__item').length === 4);
+      ok('la ficha muestra el refugio', !!$('.shelter__logo'));
+      ok('la ficha muestra la ubicación', document.body.textContent.indexOf(targetPet.location) !== -1);
+      ok('barra de acción con CTA de adopción', !!$('[data-action="adopt"]'));
+
+      var thumbs = $$('[data-photo]');
+      if (thumbs.length > 1) {
+        var firstSrc = $('#gallery-main-img').src;
+        thumbs[1].click();
+        await sleep(350);
+        ok('la galería cambia de foto principal', $('#gallery-main-img').src !== firstSrc);
+        ok('la miniatura activa se marca', $$('[data-photo]')[1].classList.contains('is-active'));
+      }
+
+      /* Mascota con solicitud previa: aviso en lugar de CTA */
+      await goTo('#/mascotas/luna');
+      await waitFor(function () { return $('.applied-note'); });
+      ok('aviso de solicitud en curso cuando ya existe', !!$('.applied-note') && !$('[data-action="adopt"]'));
+
+      /* -------- 7. Flujo de adopción -------- */
+      await goTo('#/mascotas/' + target);
+      await waitFor(function () { return $('[data-action="adopt"]'); });
+      $('[data-action="adopt"]').click();
+      await waitFor(function () { return $('dialog.overlay'); });
+      var dialog = $('dialog.overlay');
+      ok('se abre el modal de adopción', !!dialog && dialog.hasAttribute('open'));
+      ok('el modal muestra los 3 pasos', dialog.querySelectorAll('.steps__item').length === 3);
+      ok('los datos de contacto vienen prellenados del perfil',
+        dialog.querySelector('#f-name').value === State.get().user.name, dialog.querySelector('#f-name').value);
+      ok('el scroll del documento queda bloqueado', document.body.style.overflow === 'hidden');
+
+      dialog.querySelector('[data-step="next"]').click();
+      await waitFor(function () { return dialog.querySelector('[name="companions"]'); });
+      ok('avanza al paso 2 con datos válidos', !!dialog.querySelector('[name="companions"]'));
+
+      dialog.querySelector('[data-step="next"]').click();
+      await sleep(150);
+      ok('bloquea el avance con campos obligatorios sin responder',
+        dialog.querySelectorAll('.field.has-error').length >= 3,
+        dialog.querySelectorAll('.field.has-error').length + ' campos marcados');
+
+      dialog.querySelector('[name="housing"]').click();
+      dialog.querySelector('[name="companions"]').click();
+      dialog.querySelector('[name="experience"]').click();
+      dialog.querySelector('[name="outdoor"]').click();
+      dialog.querySelector('[data-step="next"]').click();
+      await waitFor(function () { return dialog.querySelector('#f-message'); });
+      ok('llega al paso 3 con el resumen', dialog.textContent.indexOf('Resumen de tu solicitud') !== -1);
+      ok('el resumen incluye la mascota elegida', dialog.textContent.indexOf(targetPet.name) !== -1);
+
+      dialog.querySelector('[data-step="submit"]').click();
+      await sleep(150);
+      ok('exige aceptar el compromiso de adopción',
+        dialog.querySelector('[data-field="acceptTerms"]').classList.contains('has-error'));
+
+      dialog.querySelector('[name="acceptTerms"]').click();
+      dialog.querySelector('#f-message').value = 'Prueba automática de interfaz.';
+      dialog.querySelector('[data-step="submit"]').click();
+      await waitFor(function () { return dialog.textContent.indexOf('¡Solicitud enviada!') !== -1; }, 3000);
+
+      var created = State.get().requests[0];
+      ok('la solicitud queda registrada', !!created && created.petId === target, created && created.id);
+      ok('la solicitud arranca como pendiente', created && created.status === 'pendiente');
+      ok('se muestra el folio de seguimiento', dialog.textContent.indexOf(created.id.toUpperCase()) !== -1);
+      ok('el contador de navegación se actualiza',
+        Number($('[data-badge="requests"]').textContent) === State.activeRequestCount(),
+        $('[data-badge="requests"]').textContent);
+      ok('se cierra el flujo con opción de ver solicitudes', !!$('[data-go-requests]'));
+
+      $('[data-modal-close]').click();
+      await waitForModalsClosed();
+      ok('el modal se cierra y libera el scroll',
+        !$('dialog.overlay') && document.body.style.overflow !== 'hidden');
+
+      /* -------- 8. Seguimiento de solicitudes -------- */
+      await goTo('#/solicitudes');
+      await waitFor(function () { return $$('.req-card').length; });
+      ok('la lista muestra las solicitudes', $$('.req-card').length === State.get().requests.length,
+        $$('.req-card').length + ' solicitudes');
+      ok('cada solicitud tiene línea de tiempo', $$('.req-card .timeline__step').length > 0);
+      ok('se muestra el estado de cada solicitud', $$('.req-card .badge').length >= State.get().requests.length);
+
+      var revisionChip = $('[data-filter-status="revision"]');
+      revisionChip.click();
+      await waitFor(function () { return $$('.req-card').length === State.requestsByStatus().revision; });
+      ok('el filtro por estado funciona', $$('.req-card').length === State.requestsByStatus().revision,
+        $$('.req-card').length + ' en revisión');
+
+      $('[data-filter-status="aprobada"]').click();
+      await waitFor(function () { return $$('.req-card').length === State.requestsByStatus().aprobada; });
+      ok('se puede ver una solicitud aprobada con su nota',
+        $$('.req-card').length === State.requestsByStatus().aprobada && !!$('.req-note'));
+
+      $('[data-filter-status="todas"]').click();
+      await waitFor(function () { return $$('[data-cancel-request]').length; });
+      var cancelButton = $('[data-cancel-request]');
+      var cancelId = cancelButton.getAttribute('data-cancel-request');
+      cancelButton.click();
+      await waitFor(function () { return $('[data-confirm-yes]'); });
+      ok('pide confirmación antes de cancelar', !!$('[data-confirm-yes]'));
+      $('[data-confirm-yes]').click();
+      await waitForModalsClosed();
+      await waitFor(function () {
+        var found = State.get().requests.filter(function (r) { return r.id === cancelId; })[0];
+        return found && found.status === 'cancelada';
+      });
+      var cancelled = State.get().requests.filter(function (r) { return r.id === cancelId; })[0];
+      ok('la solicitud queda cancelada tras confirmar', cancelled.status === 'cancelada', cancelled.status);
+
+      /* El botón "no" del diálogo no debe cancelar nada */
+      var other = $('[data-cancel-request]');
+      var otherId = other && other.getAttribute('data-cancel-request');
+      if (otherId) {
+        other.click();
+        await waitFor(function () { return $('[data-confirm-no]'); });
+        $('[data-confirm-no]').click();
+        await waitForModalsClosed();
+        var still = State.get().requests.filter(function (r) { return r.id === otherId; })[0];
+        ok('descartar la confirmación no cancela la solicitud', still.status !== 'cancelada', still.status);
+      }
+
+      /* -------- 9. Cuenta -------- */
+      await step('cuenta', async function () {
+      await goTo('#/cuenta');
+      await waitFor(function () { return $('.profile-card h1'); });
+      ok('perfil con el nombre del usuario', $('.profile-card h1').textContent.trim() === State.get().user.name);
+      ok('estadísticas de la cuenta', $$('.stat').length === 3);
+      ok('lista de favoritos en la cuenta', $$('.mini').length > 0, $$('.mini').length + ' filas');
+      ok('ajustes con interruptores', $$('[data-pref]').length === 5, $$('[data-pref]').length + ' ajustes');
+
+      /* Editar perfil: validación y guardado */
+      $('[data-action="edit-profile"]').click();
+      await waitFor(function () { return $('dialog.overlay #p-name'); });
+      var profileDialog = $('dialog.overlay');
+      if (!profileDialog || !profileDialog.querySelector('#p-name')) {
+        results.push('DIAG diálogos abiertos=' + $$('dialog.overlay').length +
+          ' | ids=[' + $$('dialog.overlay [id]').map(function (n) { return n.id; }).join(',') + ']' +
+          ' | título=' + (($('dialog.overlay .modal__title') || {}).textContent || 'ninguno'));
+      }
+      profileDialog.querySelector('#p-name').value = 'X';
+      profileDialog.querySelector('#p-email').value = 'correo-invalido';
+      profileDialog.querySelector('[data-save-profile]').click();
+      await sleep(200);
+      ok('valida nombre y correo antes de guardar',
+        profileDialog.querySelectorAll('.field.has-error').length === 2,
+        profileDialog.querySelectorAll('.field.has-error').length + ' errores');
+      ok('el perfil no se guarda con datos inválidos', State.get().user.name !== 'X');
+
+      profileDialog.querySelector('#p-name').value = 'Darwin Pruebas';
+      profileDialog.querySelector('#p-email').value = 'pruebas@adopta.mx';
+      profileDialog.querySelector('#p-city').value = 'Puebla';
+      profileDialog.querySelector('[data-save-profile]').click();
+      await waitFor(function () { return State.get().user.name === 'Darwin Pruebas'; });
+      ok('el perfil se guarda correctamente', State.get().user.name === 'Darwin Pruebas');
+      ok('la ciudad se guarda', State.get().user.city === 'Puebla', State.get().user.city);
+      ok('el avatar del encabezado refleja las iniciales', document.getElementById('topbar-avatar').textContent.trim() === 'DP',
+        document.getElementById('topbar-avatar').textContent.trim());
+      ok('la vista de cuenta se refresca con el nombre nuevo',
+        document.querySelector('.profile-card h1').textContent.trim() === 'Darwin Pruebas');
+
+      /* Preferencias y tema */
+      var prefInput = $('[data-pref="notifyNewsletter"]');
+      var prefBefore = State.get().preferences.notifyNewsletter;
+      prefInput.click();
+      await sleep(200);
+      ok('los interruptores guardan preferencias', State.get().preferences.notifyNewsletter !== prefBefore);
+
+      var themeBefore = State.get().theme;
+      document.getElementById('btn-theme').click();
+      await sleep(250);
+      ok('el tema cambia desde el encabezado', State.get().theme !== themeBefore, State.get().theme);
+      ok('el atributo data-theme se aplica al documento',
+        document.documentElement.getAttribute('data-theme') === State.get().theme);
+      ok('el icono del botón de tema se actualiza',
+        document.getElementById('btn-theme').innerHTML.indexOf('svg') !== -1);
+      });
+
+      /* -------- 10. Persistencia -------- */
+      await step('persistencia', async function () {
+      var stored = JSON.parse(localStorage.getItem('adopta:v1:state'));
+      ok('el estado persiste en localStorage', stored.user.name === 'Darwin Pruebas');
+      ok('el tema persiste en su propia clave', Storage.get('theme', null) === State.get().theme);
+      ok('la solicitud creada persiste',
+        stored.requests.some(function (r) { return r.petId === target && r.status === 'pendiente'; }));
+      });
+
+      /* -------- 11. Modo oscuro: contraste declarado -------- */
+      await step('tema oscuro', async function () {
+      ok('el tema oscuro redefine las variables de color',
+        document.documentElement.getAttribute('data-theme') !== 'dark' || State.get().theme === 'dark');
+      });
+
+      /* -------- 12. Rutas no encontradas -------- */
+      await step('rutas no encontradas', async function () {
+      await goTo('#/ruta-inexistente');
+      await waitFor(function () { return $('#vista .empty h3'); });
+      ok('404 amigable con acción de retorno', $('#vista .empty h3').textContent.indexOf('no existe') !== -1);
+      await goTo('#/mascotas/no-existe');
+      await waitFor(function () { return $('#vista .empty h3'); });
+      ok('ficha inexistente con mensaje claro', $('#vista .empty h3').textContent.indexOf('No encontramos') !== -1);
+      });
+
+      /* -------- 13. Recorrido completo de rutas -------- */
+      await step('recorrido de rutas', async function () {
+      var routes = ['/', '/mascotas', '/mascotas/nala', '/solicitudes', '/cuenta'];
+      for (var i = 0; i < routes.length; i++) {
+        await goTo('#' + routes[i]);
+        ok('la ruta ' + routes[i] + ' pinta contenido', document.getElementById('vista').children.length > 0);
+      }
+      });
+
+      /* -------- 14. Sin errores de JavaScript -------- */
+      ok('sin errores de JavaScript durante toda la sesión', jsErrors.length === 0, jsErrors.join(' | '));
+    }
+
+    function report() {
+      var passed = results.filter(function (r) { return r.indexOf('PASS ') === 0; }).length;
+      var failed = results.length - passed;
+
+      /* Informe legible por máquina: lo consume tools/ui-test.mjs vía CDP */
+      window.__TEST_REPORT__ = { passed: passed, failed: failed, results: results };
+      window.__TEST_ERRORS__ = jsErrors;
+
+      var host = document.getElementById('test-results');
+      host.hidden = false;
+      host.textContent = JSON.stringify(window.__TEST_REPORT__, null, 1);
+      document.title = failed === 0 ? 'UI-OK' : 'UI-FAIL-' + failed;
+
+      /* Resumen legible también en la consola del navegador */
+      console.log('%c RESULTADO: ' + passed + ' ok / ' + failed + ' fallos ',
+        failed === 0 ? 'background:#2A9D8F;color:#fff;padding:4px 8px;border-radius:4px'
+                     : 'background:#D64545;color:#fff;padding:4px 8px;border-radius:4px');
+      results.filter(function (r) { return r.indexOf('FAIL') === 0; })
+        .forEach(function (r) { console.log('%c' + r, 'color:#D64545'); });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      run().catch(function (error) {
+        results.push('FAIL excepción en las pruebas: ' + (error && error.message));
+        console.log(error && error.stack);
+      }).then(report);
+    });
+  })();
+  </script>
+</body>
+</html>

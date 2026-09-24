@@ -1,0 +1,21 @@
+{
+  "name": "adopta",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Adopta · plataforma web de adopción responsable de mascotas (HTML, CSS y JavaScript sin dependencias)",
+  "keywords": ["adopcion", "mascotas", "refugios", "spa", "accesibilidad", "responsive"],
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "start": "python -m http.server 8899 --bind 127.0.0.1",
+    "serve": "python -m http.server 8899 --bind 127.0.0.1",
+    "verify": "node tools/verify.mjs",
+    "test:logic": "node tools/logic-test.mjs",
+    "test:ui": "node tools/ui-test.mjs",
+    "test": "node tools/verify.mjs && node tools/logic-test.mjs",
+    "build:single": "node tools/build-single.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

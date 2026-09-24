@@ -1,0 +1,16 @@
+﻿# Archivos temporales, de sistema y credenciales
+.tmp-*
+.tmp-chrome*/
+*.log
+
+# Nunca subir secretos ni tokens
+.secrets/
+*.token
+*_token.txt
+.env
+.env.*
+
+# Basura del sistema operativo
+Thumbs.db
+desktop.ini
+.DS_Store
