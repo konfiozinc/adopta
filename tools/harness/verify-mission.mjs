@@ -141,8 +141,9 @@ async function localChecks() {
   /* --- media_local_paths --- */
   const media = await read('js/utils/media.js');
   check('media_local_paths', 5,
-    media.includes('images/') && media.includes('unsplash') && /isUnsplashId/.test(media),
-    'media.js resuelve rutas locales y remotas');
+    media.includes('images/') && media.includes('unsplash') && /isUnsplashId/.test(media) &&
+    media.includes('/^\\d+-[0-9a-f]+$/i'),
+    'media.js resuelve rutas locales y remotas (regex de ids con hash hexadecimal)');
 
   /* --- splash_hardened --- */
   const app = await read('js/app.js');

@@ -220,6 +220,25 @@ ok('las fichas con refugio lo tienen resuelto',
 ok('todas las fichas tienen al menos 1 foto real', all.every((p) => p.photos.length >= 1));
 ok('puntuación de salud entre 0 y 4', all.every((p) => p.healthScore >= 0 && p.healthScore <= 4));
 
+/* --- Regresión 2026-09: resolución de URLs de imagen -----------------------
+ * Los ids de Unsplash tienen formato <timestamp>-<hash hexadecimal> y DEBEN
+ * resolverse a URL completa; las rutas locales deben devolverse tal cual. */
+console.log('\n[4b] Resolución de imágenes');
+const UNSPLASH_ID_RE = /^\d+-[0-9a-f]+$/i;
+eq('id de Unsplash resuelve a URL completa',
+  windowStub.Media.photoUrl('1552053831-71594a27632d', 800),
+  'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&q=72&w=800');
+ok('id de Unsplash se reconoce como tal',
+  UNSPLASH_ID_RE.test('1552053831-71594a27632d') && UNSPLASH_ID_RE.test('1601976717598-e2c6add741c9'));
+eq('ruta local se devuelve tal cual',
+  windowStub.Media.photoUrl('images/mascota-02-shadow.png', 800), 'images/mascota-02-shadow.png');
+eq('srcset vacío para rutas locales',
+  windowStub.Media.srcset('images/mascota-02-shadow.png', 800), '');
+ok('todas las fotos del catálogo son ids válidos o rutas locales',
+  all.every((p) => p.photos.every((f) => UNSPLASH_ID_RE.test(f) || f.indexOf('images/') === 0 || /^https?:/.test(f))));
+ok('todas las portadas resuelven a URL o ruta local',
+  all.every((p) => /^(https:\/\/|images\/)/.test(windowStub.Media.photoUrl(p.cover, 400))));
+
 console.log('\n[5] Sugerencias de búsqueda');
 eq('sugerencia por nombre', R.suggest('lu', 5)[0].text, 'Luna');
 ok('sugerencia por refugio', R.suggest('refugio', 5).some((s) => s.pet && s.pet.shelterId === 'huellas'));

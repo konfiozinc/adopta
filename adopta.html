@@ -2820,11 +2820,13 @@ svg.icon { width: 22px; height: 22px; flex: none; display: block; }
   /* --------------------------------------------------------------------------
    * URL de una foto
    * ------------------------------------------------------------------------ */
-  /* Las fotos del catálogo original son ids de Unsplash (p. ej. "1552053831-…").
-   * Las mascotas migradas del sistema fuente usan imágenes locales del proyecto
-   * (p. ej. "images/mascota-02-shadow.png"): esas rutas se devuelven tal cual. */
+  /* Las fotos del catálogo original son ids de Unsplash con el formato
+   * <marca de tiempo>-<hash hexadecimal> (p. ej. "1552053831-71594a27632d").
+   * Las mascotas migradas del sistema fuente usan imágenes locales del
+   * proyecto (p. ej. "images/mascota-02-shadow.png"): esas rutas se devuelven
+   * tal cual. */
   function isUnsplashId(id) {
-    return /^\d[\d-]*$/.test(String(id == null ? '' : id));
+    return /^\d+-[0-9a-f]+$/i.test(String(id == null ? '' : id));
   }
 
   function photoUrl(id, width, height) {
