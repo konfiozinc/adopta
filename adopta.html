@@ -12,7 +12,7 @@
   <title>Adopta · Tu próximo compañero te espera</title>
   <meta name="description" content="Adopta conecta refugios y familias. Explora mascotas verificadas, revisa su estado de salud y envía tu solicitud de adopción en minutos." />
   <meta name="author" content="Adopta" />
-  <link rel="canonical" href="https://konfiozinc.github.io/" />
+  <link rel="canonical" href="https://konfiozinc.github.io/adopta/" />
 
   <!-- Open Graph / redes sociales -->
   <meta property="og:type" content="website" />
@@ -20,7 +20,14 @@
   <meta property="og:site_name" content="Adopta" />
   <meta property="og:title" content="Adopta · Tu próximo compañero te espera" />
   <meta property="og:description" content="Encuentra perros, gatos y conejos en adopción responsable. Solicita en minutos y sigue el estado de tu solicitud." />
+  <meta property="og:url" content="https://konfiozinc.github.io/adopta/" />
+  <meta property="og:image" content="https://konfiozinc.github.io/adopta/images/mascota-01-luna.png" />
+
+  <!-- Twitter / X -->
   <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Adopta · Tu próximo compañero te espera" />
+  <meta name="twitter:description" content="Encuentra perros, gatos y conejos en adopción responsable. Solicita en minutos y sigue el estado de tu solicitud." />
+  <meta name="twitter:image" content="https://konfiozinc.github.io/adopta/images/mascota-01-luna.png" />
 
   <!-- Favicon inline (funciona sin archivos extra) -->
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23FF6B35'/%3E%3Cpath d='M16 24s-7-4.4-7-9.2A4 4 0 0 1 16 12a4 4 0 0 1 7 2.8C23 19.6 16 24 16 24z' fill='%23fff'/%3E%3C/svg%3E" />
@@ -2811,9 +2818,17 @@ svg.icon { width: 22px; height: 22px; flex: none; display: block; }
   }
 
   /* --------------------------------------------------------------------------
-   * URL de una foto de Unsplash
+   * URL de una foto
    * ------------------------------------------------------------------------ */
+  /* Las fotos del catálogo original son ids de Unsplash (p. ej. "1552053831-…").
+   * Las mascotas migradas del sistema fuente usan imágenes locales del proyecto
+   * (p. ej. "images/mascota-02-shadow.png"): esas rutas se devuelven tal cual. */
+  function isUnsplashId(id) {
+    return /^\d[\d-]*$/.test(String(id == null ? '' : id));
+  }
+
   function photoUrl(id, width, height) {
+    if (!isUnsplashId(id)) { return String(id); }
     var w = width || 800;
     var base = 'https://images.unsplash.com/photo-' + id +
       '?auto=format&fit=crop&q=72&w=' + w;
@@ -2821,8 +2836,9 @@ svg.icon { width: 22px; height: 22px; flex: none; display: block; }
     return base;
   }
 
-  /* srcset para pantallas de alta densidad */
+  /* srcset para pantallas de alta densidad (solo para ids de Unsplash) */
   function srcset(id, width) {
+    if (!isUnsplashId(id)) { return ''; }
     var w = width || 800;
     return [
       photoUrl(id, Math.round(w * 0.6)) + ' 600w',
@@ -2858,13 +2874,23 @@ svg.icon { width: 22px; height: 22px; flex: none; display: block; }
     var loading = eager ? 'eager' : 'lazy';
     var priority = eager ? ' fetchpriority="high"' : '';
 
+    var img;
+    if (isUnsplashId(id)) {
+      img = '<img class="' + cls + '" src="' + photoUrl(id, width) + '"' +
+        ' srcset="' + srcset(id, width) + '"' +
+        ' sizes="' + (opts.sizes || '(max-width: 640px) 45vw, 300px') + '"' +
+        ' alt="' + window.Dom.escape(alt) + '"' +
+        ' loading="' + loading + '" decoding="async"' + priority + '>';
+    } else {
+      /* Imagen local del proyecto: ruta directa, sin CDN ni srcset */
+      img = '<img class="' + cls + '" src="' + window.Dom.escape(String(id)) + '"' +
+        ' alt="' + window.Dom.escape(alt) + '"' +
+        ' loading="' + loading + '" decoding="async"' + priority + '>';
+    }
+
     return window.Dom.raw(
       '<span class="img-skeleton" aria-hidden="true"></span>' +
-      '<img class="' + cls + '" src="' + photoUrl(id, width) + '"' +
-      ' srcset="' + srcset(id, width) + '"' +
-      ' sizes="' + (opts.sizes || '(max-width: 640px) 45vw, 300px') + '"' +
-      ' alt="' + window.Dom.escape(alt) + '"' +
-      ' loading="' + loading + '" decoding="async"' + priority + '>' +
+      img +
       '<span class="img-fallback" hidden aria-hidden="true"' +
       ' style="background:' + gradientFor(name) + '">' +
       '<span class="img-fallback__initial">' + window.Dom.escape(window.Format.initials(name)) + '</span>' +
@@ -2918,7 +2944,7 @@ svg.icon { width: 22px; height: 22px; flex: none; display: block; }
 
   /* Precarga las primeras N imágenes para que el listado se sienta instantáneo */
   function preload(ids, width) {
-    (ids || []).slice(0, 6).forEach(function (id) {
+    (ids || []).filter(isUnsplashId).slice(0, 6).forEach(function (id) {
       var img = new Image();
       img.decoding = 'async';
       img.src = photoUrl(id, width || 600);
@@ -2964,7 +2990,7 @@ svg.icon { width: 22px; height: 22px; flex: none; display: block; }
     "sex": "hembra",
     "size": "mediano",
     "tags": ["Cachorra", "Juguetona", "Sociable"],
-    "photos": ["1552053831-71594a27632d", "1601976717598-e2c6add741c9"],
+    "photos": ["1552053831-71594a27632d", "1601976717598-e2c6add741c9", "images/mascota-01-luna.png"],
     "description": "Luna llegó al refugio con apenas dos meses y hoy es pura energía. Aprende rápido, camina bien con correa y adora el agua. Busca una familia activa que le dé paseos diarios y muchos mimos.",
     "personality": ["Cariñosa", "Energética", "Aprende rápido", "Buena con niños"],
     "health": {
@@ -3353,6 +3379,231 @@ svg.icon { width: 22px; height: 22px; flex: none; display: block; }
     "location": "Puebla",
     "featured": false,
     "publishedAt": "2025-01-22"
+  },
+  {
+    "id": "shadow",
+    "name": "Shadow",
+    "species": "gato",
+    "breed": "Doméstico pelo corto",
+    "ageMonths": 24,
+    "weightKg": 4.1,
+    "sex": "macho",
+    "size": "pequeno",
+    "tags": ["Elegante"],
+    "photos": ["images/mascota-02-shadow.png"],
+    "description": "Shadow es tranquilo, independiente y muy limpio. Perfecto para un hogar calmado donde pueda observar el mundo desde la ventana.",
+    "personality": [],
+    "health": {
+      "vaccinated": false,
+      "sterilized": false,
+      "dewormed": false,
+      "microchipped": false,
+      "notes": "La ficha original no publica información de salud. Consulta con el refugio antes de adoptar."
+    },
+    "shelterId": null,
+    "location": "",
+    "featured": true,
+    "publishedAt": null
+  },
+  {
+    "id": "coco",
+    "name": "Coco",
+    "species": "perro",
+    "breed": "Bulldog francés",
+    "ageMonths": 24,
+    "weightKg": 10.4,
+    "sex": "macho",
+    "size": "pequeno",
+    "tags": ["Listo"],
+    "photos": ["images/mascota-05-coco.png"],
+    "description": "Coco es compacto, divertido y muy apegado. Ideal para departamento si tiene paseos cortos y mucho afecto.",
+    "personality": [],
+    "health": {
+      "vaccinated": false,
+      "sterilized": false,
+      "dewormed": false,
+      "microchipped": false,
+      "notes": "La ficha original no publica información de salud. Consulta con el refugio antes de adoptar."
+    },
+    "shelterId": null,
+    "location": "",
+    "featured": true,
+    "publishedAt": null
+  },
+  {
+    "id": "nube",
+    "name": "Nube",
+    "species": "gato",
+    "breed": "Británico / gris",
+    "ageMonths": 3,
+    "weightKg": 1.4,
+    "sex": "hembra",
+    "size": "pequeno",
+    "tags": ["Cachorro"],
+    "photos": ["images/mascota-10-nube.png"],
+    "description": "Nube es una bolita suave que aún descubre el mundo. Necesita paciencia, juegos suaves y mucho cariño.",
+    "personality": [],
+    "health": {
+      "vaccinated": false,
+      "sterilized": false,
+      "dewormed": false,
+      "microchipped": false,
+      "notes": "La ficha original no publica información de salud. Consulta con el refugio antes de adoptar."
+    },
+    "shelterId": null,
+    "location": "",
+    "featured": true,
+    "publishedAt": null
+  },
+  {
+    "id": "thor",
+    "name": "Thor",
+    "species": "perro",
+    "breed": "Husky siberiano",
+    "ageMonths": 24,
+    "weightKg": 24,
+    "sex": "macho",
+    "size": "grande",
+    "tags": ["Juguetón"],
+    "photos": ["images/mascota-11-thor.png"],
+    "description": "Thor tiene mirada intensa y mucha energía. Ideal para familias activas que aman caminatas y aventuras.",
+    "personality": [],
+    "health": {
+      "vaccinated": false,
+      "sterilized": false,
+      "dewormed": false,
+      "microchipped": false,
+      "notes": "La ficha original no publica información de salud. Consulta con el refugio antes de adoptar."
+    },
+    "shelterId": null,
+    "location": "",
+    "featured": true,
+    "publishedAt": null
+  },
+  {
+    "id": "mimi",
+    "name": "Mimi",
+    "species": "gato",
+    "breed": "Atigrado naranja",
+    "ageMonths": 48,
+    "weightKg": 4.8,
+    "sex": "hembra",
+    "size": "pequeno",
+    "tags": ["Tranquilo"],
+    "photos": ["images/mascota-04-mimi.png"],
+    "description": "Mimi es cariñosa y le gusta estar cerca de las personas. Busca un sofá cómodo y alguien que la mime.",
+    "personality": [],
+    "health": {
+      "vaccinated": false,
+      "sterilized": false,
+      "dewormed": false,
+      "microchipped": false,
+      "notes": "La ficha original no publica información de salud. Consulta con el refugio antes de adoptar."
+    },
+    "shelterId": null,
+    "location": "",
+    "featured": false,
+    "publishedAt": null
+  },
+  {
+    "id": "nieve",
+    "name": "Nieve",
+    "species": "conejo",
+    "breed": "Conejo",
+    "ageMonths": 8,
+    "weightKg": 1.6,
+    "sex": "hembra",
+    "size": "pequeno",
+    "tags": ["Suave"],
+    "photos": ["images/mascota-06-nieve.png"],
+    "description": "Nieve es curiosa y delicada. Quiere un espacio seguro, paciencia y una familia que respete su ritmo.",
+    "personality": [],
+    "health": {
+      "vaccinated": false,
+      "sterilized": false,
+      "dewormed": false,
+      "microchipped": false,
+      "notes": "La ficha original no publica información de salud. Consulta con el refugio antes de adoptar."
+    },
+    "shelterId": null,
+    "location": "",
+    "featured": false,
+    "publishedAt": null
+  },
+  {
+    "id": "kira",
+    "name": "Kira",
+    "species": "gato",
+    "breed": "Siamés",
+    "ageMonths": 36,
+    "weightKg": 3.9,
+    "sex": "hembra",
+    "size": "pequeno",
+    "tags": ["Elegante"],
+    "photos": ["images/mascota-08-kira.png"],
+    "description": "Kira es expresiva, elegante y conversadora. Busca compañía y un hogar donde no se sienta sola.",
+    "personality": [],
+    "health": {
+      "vaccinated": false,
+      "sterilized": false,
+      "dewormed": false,
+      "microchipped": false,
+      "notes": "La ficha original no publica información de salud. Consulta con el refugio antes de adoptar."
+    },
+    "shelterId": null,
+    "location": "",
+    "featured": false,
+    "publishedAt": null
+  },
+  {
+    "id": "chispa",
+    "name": "Chispa",
+    "species": "perro",
+    "breed": "Terrier mestizo",
+    "ageMonths": 60,
+    "weightKg": 7.3,
+    "sex": "hembra",
+    "size": "pequeno",
+    "tags": ["Listo"],
+    "photos": ["images/mascota-09-chispa.png"],
+    "description": "Chispa es valiente, alegre y fácil de querer. Perfecta para alguien que busque una compañera leal de tamaño pequeño.",
+    "personality": [],
+    "health": {
+      "vaccinated": false,
+      "sterilized": false,
+      "dewormed": false,
+      "microchipped": false,
+      "notes": "La ficha original no publica información de salud. Consulta con el refugio antes de adoptar."
+    },
+    "shelterId": null,
+    "location": "",
+    "featured": false,
+    "publishedAt": null
+  },
+  {
+    "id": "canela",
+    "name": "Canela",
+    "species": "gato",
+    "breed": "Calico",
+    "ageMonths": 12,
+    "weightKg": 3.5,
+    "sex": "hembra",
+    "size": "pequeno",
+    "tags": ["Listo"],
+    "photos": ["images/mascota-12-canela.png"],
+    "description": "Canela es dulce, curiosa y muy fotogénica. Busca un hogar cálido donde pueda explorar y ronronear.",
+    "personality": [],
+    "health": {
+      "vaccinated": false,
+      "sterilized": false,
+      "dewormed": false,
+      "microchipped": false,
+      "notes": "La ficha original no publica información de salud. Consulta con el refugio antes de adoptar."
+    },
+    "shelterId": null,
+    "location": "",
+    "featured": false,
+    "publishedAt": null
   }
 ]
 `;
@@ -3633,6 +3884,10 @@ svg.icon { width: 22px; height: 22px; flex: none; display: block; }
   function sortPets(list, sort) {
     var mode = sort || 'recientes';
     var copy = list.slice();
+    /* Las fichas migradas del sistema fuente pueden no tener fecha de
+       publicación: se ordenan siempre después de las fechadas y nunca rompen
+       la ordenación. */
+    function pubDate(pet) { return pet.publishedAt || ''; }
     copy.sort(function (a, b) {
       switch (mode) {
         case 'nombre':
@@ -3643,10 +3898,14 @@ svg.icon { width: 22px; height: 22px; flex: none; display: block; }
           return b.ageMonths - a.ageMonths;
         case 'destacados':
           if (a.featured !== b.featured) { return a.featured ? -1 : 1; }
-          return String(b.publishedAt).localeCompare(String(a.publishedAt));
+          if (!pubDate(a)) { return 1; }
+          if (!pubDate(b)) { return -1; }
+          return String(pubDate(b)).localeCompare(String(pubDate(a)));
         case 'recientes':
         default:
-          return String(b.publishedAt).localeCompare(String(a.publishedAt));
+          if (!pubDate(a)) { return 1; }
+          if (!pubDate(b)) { return -1; }
+          return String(pubDate(b)).localeCompare(String(pubDate(a)));
       }
     });
     return copy;
@@ -6756,9 +7015,10 @@ svg.icon { width: 22px; height: 22px; flex: none; display: block; }
               ${window.Dom.raw(window.Icon.render('share'))}
             </button>
           </div>
-          <span class="badge badge--glass badge--float">
-            ${window.Dom.raw(window.Icon.render('location'))} ${pet.location}
-          </span>
+          ${pet.location ? window.Dom.raw(window.Dom.h`
+            <span class="badge badge--glass badge--float">
+              ${window.Dom.raw(window.Icon.render('location'))} ${pet.location}
+            </span>`) : ''}
         </div>
 
         ${pet.photos.length > 1 ? window.Dom.raw(window.Dom.h`
@@ -6790,6 +7050,17 @@ svg.icon { width: 22px; height: 22px; flex: none; display: block; }
   }
 
   function healthBlock(pet) {
+    /* Fichas migradas del sistema fuente: no publican información de salud.
+       Se muestra la nota honesta en lugar de una tabla en ceros. */
+    if (!pet.healthScore && pet.health.notes) {
+      return window.Dom.h`
+        <section class="block">
+          <h2 class="block__title">${window.Dom.raw(window.Icon.render('shield'))} Salud</h2>
+          ${window.Dom.raw(window.Cards.demoNote(pet.health.notes, 'info'))}
+        </section>`;
+    }
+    if (!pet.healthScore) { return ''; }
+
     var rows = [
       { key: 'vaccinated', label: 'Vacunas al día', hint: pet.health.vaccinated ? 'Carné actualizado' : 'Pendiente' },
       { key: 'sterilized', label: 'Esterilizado/a', hint: pet.health.sterilized ? 'Intervención realizada' : 'Se realiza antes de la entrega' },
@@ -6936,15 +7207,16 @@ svg.icon { width: 22px; height: 22px; flex: none; display: block; }
                 ${window.Dom.raw(window.Icon.render(pet.speciesIcon))} ${pet.breed}
                 <span aria-hidden="true">·</span>
                 ${pet.speciesLabel}
-                <span aria-hidden="true">·</span>
-                ${pet.location}
+                ${pet.location ? window.Dom.raw(window.Dom.h`<span aria-hidden="true">·</span> ${pet.location}`) : ''}
               </p>
               <div class="detail__badges">
                 ${window.Dom.raw(tags)}
-                <span class="badge badge--success">
-                  ${window.Dom.raw(window.Icon.render('shield'))} Salud ${pet.healthScore}/4
-                </span>
-                <span class="badge">${window.Dom.raw(window.Icon.render('clock'))} Publicado ${window.Format.relative(pet.publishedAt)}</span>
+                ${pet.healthScore > 0 ? window.Dom.raw(window.Dom.h`
+                  <span class="badge badge--success">
+                    ${window.Dom.raw(window.Icon.render('shield'))} Salud ${pet.healthScore}/4
+                  </span>`) : ''}
+                ${pet.publishedAt ? window.Dom.raw(window.Dom.h`
+                  <span class="badge">${window.Dom.raw(window.Icon.render('clock'))} Publicado ${window.Format.relative(pet.publishedAt)}</span>`) : ''}
               </div>
             </header>
 
@@ -8056,6 +8328,11 @@ svg.icon { width: 22px; height: 22px; flex: none; display: block; }
 
     window.setTimeout(hideSplash, Math.min(wait, SPLASH_MAX_MS));
 
+    /* Red de seguridad: pase lo que pase durante el arranque (un módulo que
+       falle, un navegador restrictivo, una red lenta), la pantalla de carga
+       nunca puede quedarse atascada. */
+    window.setTimeout(hideSplash, SPLASH_MAX_MS + 800);
+
     /* El usuario puede saltarla con un clic, una tecla o un toque */
     var skip = function () { hideSplash(); };
     splash.addEventListener('click', skip);
@@ -8072,6 +8349,10 @@ svg.icon { width: 22px; height: 22px; flex: none; display: block; }
       splashVisible: !!document.getElementById('splash') &&
         !document.getElementById('splash').classList.contains('is-hidden')
     };
+
+    /* Última red de seguridad: un error global durante el arranque tampoco
+       puede dejar la pantalla de carga bloqueada. */
+    window.addEventListener('error', hideSplash);
 
     /* Navegación y encabezado */
     window.Nav.render();
@@ -8103,13 +8384,18 @@ svg.icon { width: 22px; height: 22px; flex: none; display: block; }
       if (event.type === 'theme:change') { window.Topbar.updateThemeButton(); }
     });
 
-    /* Primera resolución de ruta y retirada de la pantalla de carga */
-    window.Router.start().then(function () {
-      setupSplash();
-    }).catch(function (error) {
+    /* Retirada de la pantalla de carga: se programa ANTES de arrancar el
+       router, de modo que ningún fallo posterior pueda dejarla visible. */
+    setupSplash();
+
+    /* Primera resolución de ruta */
+    try {
+      window.Router.start().catch(function (error) {
+        if (window.console) { window.console.error('[Adopta] Fallo al iniciar el router', error); }
+      });
+    } catch (error) {
       if (window.console) { window.console.error('[Adopta] Fallo al iniciar el router', error); }
-      setupSplash();
-    });
+    }
 
     /* Precarga de las imágenes más probables: hace que el catálogo se sienta
        instantáneo en la segunda visita. */

@@ -36,9 +36,17 @@
   }
 
   /* --------------------------------------------------------------------------
-   * URL de una foto de Unsplash
+   * URL de una foto
    * ------------------------------------------------------------------------ */
+  /* Las fotos del catálogo original son ids de Unsplash (p. ej. "1552053831-…").
+   * Las mascotas migradas del sistema fuente usan imágenes locales del proyecto
+   * (p. ej. "images/mascota-02-shadow.png"): esas rutas se devuelven tal cual. */
+  function isUnsplashId(id) {
+    return /^\d[\d-]*$/.test(String(id == null ? '' : id));
+  }
+
   function photoUrl(id, width, height) {
+    if (!isUnsplashId(id)) { return String(id); }
     var w = width || 800;
     var base = 'https://images.unsplash.com/photo-' + id +
       '?auto=format&fit=crop&q=72&w=' + w;
@@ -46,8 +54,9 @@
     return base;
   }
 
-  /* srcset para pantallas de alta densidad */
+  /* srcset para pantallas de alta densidad (solo para ids de Unsplash) */
   function srcset(id, width) {
+    if (!isUnsplashId(id)) { return ''; }
     var w = width || 800;
     return [
       photoUrl(id, Math.round(w * 0.6)) + ' 600w',
@@ -83,13 +92,23 @@
     var loading = eager ? 'eager' : 'lazy';
     var priority = eager ? ' fetchpriority="high"' : '';
 
+    var img;
+    if (isUnsplashId(id)) {
+      img = '<img class="' + cls + '" src="' + photoUrl(id, width) + '"' +
+        ' srcset="' + srcset(id, width) + '"' +
+        ' sizes="' + (opts.sizes || '(max-width: 640px) 45vw, 300px') + '"' +
+        ' alt="' + window.Dom.escape(alt) + '"' +
+        ' loading="' + loading + '" decoding="async"' + priority + '>';
+    } else {
+      /* Imagen local del proyecto: ruta directa, sin CDN ni srcset */
+      img = '<img class="' + cls + '" src="' + window.Dom.escape(String(id)) + '"' +
+        ' alt="' + window.Dom.escape(alt) + '"' +
+        ' loading="' + loading + '" decoding="async"' + priority + '>';
+    }
+
     return window.Dom.raw(
       '<span class="img-skeleton" aria-hidden="true"></span>' +
-      '<img class="' + cls + '" src="' + photoUrl(id, width) + '"' +
-      ' srcset="' + srcset(id, width) + '"' +
-      ' sizes="' + (opts.sizes || '(max-width: 640px) 45vw, 300px') + '"' +
-      ' alt="' + window.Dom.escape(alt) + '"' +
-      ' loading="' + loading + '" decoding="async"' + priority + '>' +
+      img +
       '<span class="img-fallback" hidden aria-hidden="true"' +
       ' style="background:' + gradientFor(name) + '">' +
       '<span class="img-fallback__initial">' + window.Dom.escape(window.Format.initials(name)) + '</span>' +
@@ -143,7 +162,7 @@
 
   /* Precarga las primeras N imágenes para que el listado se sienta instantáneo */
   function preload(ids, width) {
-    (ids || []).slice(0, 6).forEach(function (id) {
+    (ids || []).filter(isUnsplashId).slice(0, 6).forEach(function (id) {
       var img = new Image();
       img.decoding = 'async';
       img.src = photoUrl(id, width || 600);

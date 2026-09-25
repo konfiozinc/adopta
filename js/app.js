@@ -264,6 +264,11 @@
 
     window.setTimeout(hideSplash, Math.min(wait, SPLASH_MAX_MS));
 
+    /* Red de seguridad: pase lo que pase durante el arranque (un módulo que
+       falle, un navegador restrictivo, una red lenta), la pantalla de carga
+       nunca puede quedarse atascada. */
+    window.setTimeout(hideSplash, SPLASH_MAX_MS + 800);
+
     /* El usuario puede saltarla con un clic, una tecla o un toque */
     var skip = function () { hideSplash(); };
     splash.addEventListener('click', skip);
@@ -280,6 +285,10 @@
       splashVisible: !!document.getElementById('splash') &&
         !document.getElementById('splash').classList.contains('is-hidden')
     };
+
+    /* Última red de seguridad: un error global durante el arranque tampoco
+       puede dejar la pantalla de carga bloqueada. */
+    window.addEventListener('error', hideSplash);
 
     /* Navegación y encabezado */
     window.Nav.render();
@@ -311,13 +320,18 @@
       if (event.type === 'theme:change') { window.Topbar.updateThemeButton(); }
     });
 
-    /* Primera resolución de ruta y retirada de la pantalla de carga */
-    window.Router.start().then(function () {
-      setupSplash();
-    }).catch(function (error) {
+    /* Retirada de la pantalla de carga: se programa ANTES de arrancar el
+       router, de modo que ningún fallo posterior pueda dejarla visible. */
+    setupSplash();
+
+    /* Primera resolución de ruta */
+    try {
+      window.Router.start().catch(function (error) {
+        if (window.console) { window.console.error('[Adopta] Fallo al iniciar el router', error); }
+      });
+    } catch (error) {
       if (window.console) { window.console.error('[Adopta] Fallo al iniciar el router', error); }
-      setupSplash();
-    });
+    }
 
     /* Precarga de las imágenes más probables: hace que el catálogo se sienta
        instantáneo en la segunda visita. */

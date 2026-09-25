@@ -17,7 +17,7 @@ y sin paso de compilación obligatorio.
 | **Páginas** | Inicio, Catálogo con filtros avanzados, **Ficha completa de cada mascota**, Mis solicitudes, Cuenta y página 404 propia |
 | **Flujo de adopción** | Formulario de 3 pasos con validación en español, resumen, confirmación y folio de seguimiento |
 | **Interactividad** | Favoritos persistentes, buscador con autocompletado, filtros combinables, ordenación, galería de fotos, edición de perfil con subida de imagen |
-| **Datos** | 16 mascotas reales de ejemplo, 7 refugios, perfil y solicitudes precargadas para que la demo nunca se vea vacía |
+| **Datos** | 25 mascotas (16 del catálogo original + 9 migradas del sistema fuente con sus fotografías reales), 7 refugios, perfil y solicitudes precargadas para que la demo nunca se vea vacía |
 | **Accesibilidad** | HTML semántico, `aria-*` en todos los controles, foco gestionado entre vistas, trampa de foco en modales, atajos de teclado y respeto por `prefers-reduced-motion` |
 | **Calidad** | 129 pruebas de lógica + 57 comprobaciones de estructura + suite de interfaz en navegador real |
 
@@ -140,16 +140,29 @@ Enlaces directos útiles: `#/mascotas?especie=gato` (filtra el catálogo por esp
   "sex": "hembra",                 // hembra | macho
   "size": "mediano",               // pequeno | mediano | grande
   "tags": ["Cachorra", "Juguetona", "Sociable"],   // rasgos objetivos, no adjetivos vacíos
-  "photos": ["<id-de-foto-unsplash>", "..."],
+  "photos": ["<id-de-foto-unsplash>", "..."],      // también acepta rutas locales: "images/…"
   "description": "…",
   "personality": ["Cariñosa", "Enérgica"],
   "health": { "vaccinated": true, "sterilized": false, "dewormed": true, "microchipped": true, "notes": "…" },
-  "shelterId": "huellas",
+  "shelterId": "huellas",          // null en fichas migradas que no publican refugio
   "location": "Ciudad de México",
   "featured": true,
-  "publishedAt": "2025-01-18"
+  "publishedAt": "2025-01-18"      // null en fichas migradas (se ordenan al final)
 }
 ```
+
+### Mascotas migradas del sistema fuente
+
+Nueve fichas provienen de la auditoría del sistema fuente
+(`https://ecnlatamacademy.com/practicas/saas/sistema/adopta/app/`): **Shadow, Coco,
+Nube, Thor, Mimi, Nieve, Kira, Chispa y Canela**. Sus datos (nombre, especie, raza,
+edad, peso, sexo, tamaño, etiqueta e historia) y sus fotografías
+(`images/mascota-XX-*.png`) son los originales de ese sistema, reutilizados aquí
+para no perder información. Como el sistema fuente no publica refugio, ubicación,
+salud ni fecha de publicación para estas fichas, esos campos quedan vacíos y la
+interfaz lo muestra de forma honesta (nota de "consulta con el refugio" en lugar de
+una tabla de salud en ceros). La fotografía original de Luna se añadió como tercera
+foto de su galería.
 
 El estado del usuario vive en `localStorage` bajo el espacio de nombres `adopta:v1`
 (`state` y `theme`). Desde **Cuenta → Exportar datos** se descarga todo en JSON, y
@@ -243,11 +256,13 @@ Escala de espaciado de 4 px, radios de 10 a 34 px, tres niveles de sombra y tran
 
 ## 📝 Notas
 
-- Las fotografías se sirven desde Unsplash y las tipografías desde Google Fonts; si no hay
-  conexión, la aplicación muestra un degradado cálido con la inicial de cada mascota en lugar de
-  una imagen rota, y recurre a las tipografías del sistema.
-- Los datos de mascotas, refugios, perfil y solicitudes son de demostración y viven en el
-  navegador de cada visitante.
+- Las fotografías del catálogo original se sirven desde Unsplash y las de las fichas
+  migradas desde la carpeta `images/` del propio proyecto; las tipografías vienen de
+  Google Fonts. Si no hay conexión, la aplicación muestra un degradado cálido con la
+  inicial de cada mascota en lugar de una imagen rota, y recurre a las tipografías
+  del sistema.
+- Los datos de mascotas, refugios, perfil y solicitudes son de demostración y viven en
+  el navegador de cada visitante.
 - El código está comentado en español, organizado por módulos y sin dependencias externas.
 
 ---

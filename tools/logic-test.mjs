@@ -165,14 +165,14 @@ eq('fecha inválida degrada a guion', F.shortDate('no-es-fecha'), '—');
 /* --------------------------------------------------------------- Catálogo */
 console.log('\n[3] Catálogo y consultas');
 const all = R._sync.listPets({});
-eq('total de mascotas', all.length, 16);
-eq('filtro por perros', R._sync.listPets({ species: 'perro' }).length, 9);
-eq('filtro por gatos', R._sync.listPets({ species: 'gato' }).length, 6);
-eq('filtro por conejos', R._sync.listPets({ species: 'conejo' }).length, 1);
-eq('filtro "todos" devuelve todo', R._sync.listPets({ species: 'todos' }).length, 16);
+eq('total de mascotas', all.length, 25);
+eq('filtro por perros', R._sync.listPets({ species: 'perro' }).length, 12);
+eq('filtro por gatos', R._sync.listPets({ species: 'gato' }).length, 11);
+eq('filtro por conejos', R._sync.listPets({ species: 'conejo' }).length, 2);
+eq('filtro "todos" devuelve todo', R._sync.listPets({ species: 'todos' }).length, 25);
 eq('búsqueda por nombre', R._sync.listPets({ search: 'luna' }).map((p) => p.name), ['Luna']);
 eq('búsqueda insensible a mayúsculas', R._sync.listPets({ search: 'LUNA' }).length, 1);
-eq('búsqueda por raza', R._sync.listPets({ search: 'husky' }).map((p) => p.name), ['Loki']);
+eq('búsqueda por raza', R._sync.listPets({ search: 'husky' }).map((p) => p.name), ['Loki', 'Thor']);
 eq('búsqueda por refugio', R._sync.listPets({ search: 'bigotes' }).length, 3);
 eq('búsqueda sin resultados', R._sync.listPets({ search: 'ornitorrinco' }).length, 0);
 eq('filtro por tamaño pequeño', R._sync.listPets({ size: 'pequeno' }).length,
@@ -200,7 +200,7 @@ ok('todas las recomendaciones son de la misma especie',
   R._sync.similarPets(R._sync.getPet('milo'), 4).every((p) => p.species === 'gato'));
 ok('las recomendaciones no incluyen la propia mascota',
   R._sync.similarPets(R._sync.getPet('milo'), 4).every((p) => p.id !== 'milo'));
-eq('conteo por especie', R.speciesCounts(), { todos: 16, perro: 9, gato: 6, conejo: 1, otro: 0 });
+eq('conteo por especie', R.speciesCounts(), { todos: 25, perro: 12, gato: 11, conejo: 2, otro: 0 });
 eq('refugios listados', R.listShelters().length, 7);
 eq('refugio de una mascota', R._sync.getPet('luna').shelter.name, 'Refugio Huellas de Amor');
 
@@ -215,8 +215,9 @@ eq('Luna no está esterilizada todavía', luna.health.sterilized, false);
 ok('todas las fichas indican si están vacunadas',
   all.every((p) => typeof p.health.vaccinated === 'boolean'));
 eq('portada = primera foto', luna.cover, luna.photos[0]);
-ok('todas las fichas tienen refugio resuelto', all.every((p) => p.shelter && p.shelter.name));
-ok('todas las fichas tienen al menos 2 fotos', all.every((p) => p.photos.length >= 2));
+ok('las fichas con refugio lo tienen resuelto',
+  all.every((p) => !p.shelterId || (p.shelter && p.shelter.name)));
+ok('todas las fichas tienen al menos 1 foto real', all.every((p) => p.photos.length >= 1));
 ok('puntuación de salud entre 0 y 4', all.every((p) => p.healthScore >= 0 && p.healthScore <= 4));
 
 console.log('\n[5] Sugerencias de búsqueda');

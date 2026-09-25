@@ -45,9 +45,10 @@
               ${window.Dom.raw(window.Icon.render('share'))}
             </button>
           </div>
-          <span class="badge badge--glass badge--float">
-            ${window.Dom.raw(window.Icon.render('location'))} ${pet.location}
-          </span>
+          ${pet.location ? window.Dom.raw(window.Dom.h`
+            <span class="badge badge--glass badge--float">
+              ${window.Dom.raw(window.Icon.render('location'))} ${pet.location}
+            </span>`) : ''}
         </div>
 
         ${pet.photos.length > 1 ? window.Dom.raw(window.Dom.h`
@@ -79,6 +80,17 @@
   }
 
   function healthBlock(pet) {
+    /* Fichas migradas del sistema fuente: no publican información de salud.
+       Se muestra la nota honesta en lugar de una tabla en ceros. */
+    if (!pet.healthScore && pet.health.notes) {
+      return window.Dom.h`
+        <section class="block">
+          <h2 class="block__title">${window.Dom.raw(window.Icon.render('shield'))} Salud</h2>
+          ${window.Dom.raw(window.Cards.demoNote(pet.health.notes, 'info'))}
+        </section>`;
+    }
+    if (!pet.healthScore) { return ''; }
+
     var rows = [
       { key: 'vaccinated', label: 'Vacunas al día', hint: pet.health.vaccinated ? 'Carné actualizado' : 'Pendiente' },
       { key: 'sterilized', label: 'Esterilizado/a', hint: pet.health.sterilized ? 'Intervención realizada' : 'Se realiza antes de la entrega' },
@@ -225,15 +237,16 @@
                 ${window.Dom.raw(window.Icon.render(pet.speciesIcon))} ${pet.breed}
                 <span aria-hidden="true">·</span>
                 ${pet.speciesLabel}
-                <span aria-hidden="true">·</span>
-                ${pet.location}
+                ${pet.location ? window.Dom.raw(window.Dom.h`<span aria-hidden="true">·</span> ${pet.location}`) : ''}
               </p>
               <div class="detail__badges">
                 ${window.Dom.raw(tags)}
-                <span class="badge badge--success">
-                  ${window.Dom.raw(window.Icon.render('shield'))} Salud ${pet.healthScore}/4
-                </span>
-                <span class="badge">${window.Dom.raw(window.Icon.render('clock'))} Publicado ${window.Format.relative(pet.publishedAt)}</span>
+                ${pet.healthScore > 0 ? window.Dom.raw(window.Dom.h`
+                  <span class="badge badge--success">
+                    ${window.Dom.raw(window.Icon.render('shield'))} Salud ${pet.healthScore}/4
+                  </span>`) : ''}
+                ${pet.publishedAt ? window.Dom.raw(window.Dom.h`
+                  <span class="badge">${window.Dom.raw(window.Icon.render('clock'))} Publicado ${window.Format.relative(pet.publishedAt)}</span>`) : ''}
               </div>
             </header>
 

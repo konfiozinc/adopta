@@ -116,6 +116,10 @@
   function sortPets(list, sort) {
     var mode = sort || 'recientes';
     var copy = list.slice();
+    /* Las fichas migradas del sistema fuente pueden no tener fecha de
+       publicación: se ordenan siempre después de las fechadas y nunca rompen
+       la ordenación. */
+    function pubDate(pet) { return pet.publishedAt || ''; }
     copy.sort(function (a, b) {
       switch (mode) {
         case 'nombre':
@@ -126,10 +130,14 @@
           return b.ageMonths - a.ageMonths;
         case 'destacados':
           if (a.featured !== b.featured) { return a.featured ? -1 : 1; }
-          return String(b.publishedAt).localeCompare(String(a.publishedAt));
+          if (!pubDate(a)) { return 1; }
+          if (!pubDate(b)) { return -1; }
+          return String(pubDate(b)).localeCompare(String(pubDate(a)));
         case 'recientes':
         default:
-          return String(b.publishedAt).localeCompare(String(a.publishedAt));
+          if (!pubDate(a)) { return 1; }
+          if (!pubDate(b)) { return -1; }
+          return String(pubDate(b)).localeCompare(String(pubDate(a)));
       }
     });
     return copy;
