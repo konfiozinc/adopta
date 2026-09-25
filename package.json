@@ -13,6 +13,8 @@
     "test:logic": "node tools/logic-test.mjs",
     "test:ui": "node tools/ui-test.mjs",
     "test": "node tools/verify.mjs && node tools/logic-test.mjs",
+    "harness": "node tools/harness/verify-mission.mjs",
+    "harness:qa": "node tools/harness/qa-rutas.mjs",
     "build:single": "node tools/build-single.mjs"
   },
   "engines": {

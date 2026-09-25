@@ -254,6 +254,29 @@ Escala de espaciado de 4 px, radios de 10 a 34 px, tres niveles de sombra y tran
 
 ---
 
+## 🧪 Harness de verificación de la misión
+
+El repositorio incluye un harness que comprueba automáticamente si la misión
+"adopta-rebuild" está cumplida, incluido el **gate obligatorio de la segunda
+comparación** contra el sistema fuente (sin él, el resultado se anula).
+
+```bash
+npm run harness        # criterios ponderados (100 puntos) + gate + exit code
+npm run harness:qa     # QA de rutas con Edge/Chrome headless (splash nunca atascado)
+```
+
+- Contrato de la misión: `mission/adopta.mission.yaml`
+- Verificador: `tools/harness/verify-mission.mjs` (opciones `SITE_URL`,
+  `SOURCE_URL`, `SOURCE_API`, `EVIDENCE_FILE`; salida `--json` para CI)
+- Fixture de datos reales del sistema fuente: `tools/harness/fixtures/mascotas-fuente.json`
+- Evidencia del gate: `mission/evidencia/segunda-pasada.md`
+- Pipeline de Harness.io: `.harness/pipeline.yaml` (bloquea si `blocked` o score < 80)
+
+La fidelidad de datos se comprueba campo a campo contra la API/fixture del
+sistema fuente (raza, edad, peso, sexo, tamaño, etiqueta, historia, foto y
+destacada), de modo que inventar o alterar un dato rompe el criterio
+`no_inventar_datos`.
+
 ## 📝 Notas
 
 - Las fotografías del catálogo original se sirven desde Unsplash y las de las fichas

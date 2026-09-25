@@ -1,0 +1,43 @@
+# ============================================================================
+# Harness CI (Harness.io) para la misión adopta-rebuild
+# ----------------------------------------------------------------------------
+# Ejecuta el harness de verificación sobre el repositorio y bloquea el pipeline
+# si falta la segunda comparación (gate) o el score baja de 80/100.
+# Ajusta `connectorRef` al conector de tu cuenta Harness.
+# ============================================================================
+pipeline:
+  name: adopta-mission-harness
+  identifier: adopta_mission_harness
+  projectIdentifier: adopta
+  orgIdentifier: default
+  tags: {}
+  stages:
+    - stage:
+        name: Verificar misión
+        identifier: verificar_mision
+        type: CI
+        spec:
+          cloneCodebase: true
+          execution:
+            steps:
+              - step:
+                  type: Run
+                  name: Harness de verificación
+                  identifier: harness_verify
+                  spec:
+                    connectorRef: account.github
+                    image: node:22
+                    shell: Sh
+                    command: |
+                      node tools/harness/verify-mission.mjs --json > harness-report.json || true
+                      cat harness-report.json
+              - step:
+                  type: Run
+                  name: Gate segunda comparación y score
+                  identifier: harness_gate
+                  spec:
+                    connectorRef: account.github
+                    image: node:22
+                    shell: Sh
+                    command: |
+                      node -e "const r=require('./harness-report.json');if(r.blocked){console.error('⛔ BLOQUEADO: falta la segunda comparación');process.exit(1)}if(r.score<80){console.error('Score insuficiente: '+r.score);process.exit(1)}console.log('✔ Misión verificada: '+r.score+'/100')"

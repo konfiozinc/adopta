@@ -1,0 +1,79 @@
+# ============================================================================
+# ADOPTA · Especificación de la misión (contrato del harness)
+# ============================================================================
+# Este archivo es la fuente de verdad de qué significa "cumplir la misión".
+# El verificador tools/harness/verify-mission.mjs evalúa exactamente estos
+# criterios y aplica el gate de la segunda comparación.
+# ============================================================================
+
+id: adopta-rebuild
+title: Reconstruir y publicar el sistema Adopta
+version: "2.0"
+
+# --- Referencias ----------------------------------------------------------
+source_system: https://ecnlatamacademy.com/practicas/saas/sistema/adopta/app/
+source_api:    https://ecnlatamacademy.com/practicas/saas/sistema/adopta/api/index.php
+deliverable_repo: https://github.com/konfiozinc/adopta
+deliverable_site: https://konfiozinc.github.io/adopta/
+baseline_commit: 9421bb5
+
+# --- Restricciones innegociables -----------------------------------------
+constraints:
+  - no_inventar_datos            # Solo datos reales del sistema fuente o del proyecto
+  - conservar_imagenes_originales# No sustituir ni eliminar las fotos existentes
+  - responsive_movil_escritorio  # 320px – 1920px sin desbordes
+  - no_romper_16_mascotas_originales
+  - github_pages_sin_404
+
+# --- Fases requeridas (todas deben dejar evidencia) -----------------------
+required_phases:
+  - auditoria_fuente
+  - auditoria_proyecto
+  - migracion_datos_e_imagenes
+  - hardening_splash
+  - qa_rutas
+  - despliegue
+  - segunda_comparacion          # GATE: sin esta fase el resultado se anula
+
+# --- Criterios de éxito (pesos que suman 100) -----------------------------
+success_criteria:
+  - id: pets_total
+    weight: 10
+    desc: "data/pets.json contiene 25 mascotas"
+  - id: pets_especies
+    weight: 5
+    desc: "Distribución: 12 perros, 11 gatos, 2 conejos"
+  - id: source_pets_9
+    weight: 8
+    desc: "Las 9 mascotas migradas del sistema fuente están presentes"
+  - id: no_inventar_datos
+    weight: 12
+    desc: "Cada campo migrado coincide literalmente con la API/fixture del sistema fuente"
+  - id: images_locales
+    weight: 8
+    desc: "Las fotografías originales del sistema fuente existen en images/"
+  - id: media_local_paths
+    weight: 5
+    desc: "media.js resuelve rutas locales además de ids de Unsplash"
+  - id: splash_hardened
+    weight: 10
+    desc: "app.js oculta el splash ante cualquier fallo (timeout + handler de error)"
+  - id: canonical_ok
+    weight: 5
+    desc: "canonical, og:url y og:image apuntan a la URL real de GitHub Pages"
+  - id: tests_verde
+    weight: 10
+    desc: "tools/verify.mjs y tools/logic-test.mjs pasan sin fallos"
+  - id: qa_rutas_live
+    weight: 12
+    desc: "Sitio publicado: rutas responden, pets.json con 25, imágenes 200"
+  - id: segunda_pasada
+    weight: 15
+    desc: "GATE: comparación final contra el sistema fuente ejecutada y documentada"
+
+# --- Limitaciones conocidas (se registran, no se silencian) ---------------
+known_limitations:
+  - id: ui_inline
+    desc: >-
+      tools/test-inline.html (batería de UI) no completa bajo CDP con tiempo
+      virtual en algunos entornos; se registra como 'skipped' con motivo.
